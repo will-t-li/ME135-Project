@@ -1,0 +1,78 @@
+// PID infinite loop
+while(TRUE)
+    //getting current position
+    cur_pos = read_cur_pos();
+    //calculate the error
+    error = target_pos - current_pos;
+    //calculate the integral
+    integral = integral + error;
+    //calculate the derivative
+    derivative = error - last error;
+    //calculate the control var
+    pwm = (kp * error) + (ki * integral) + (kd * derivative);
+    //limit the control var to within +/- 255
+    if (pwm > 255) pwm = 255;
+    else if (pwm < -255) pwm = -255;
+
+    //If control var is positive, run motor clockwise
+    if (pwm > 0) motor_cw(pwm);
+    //If control var is negative, run motor counter clockwise
+    if (pwm < 0) motor_ccw(-pwm);
+    //if control var is 0, stop motor
+    else motor_stop();
+
+    //save the current error as last error
+    last_error = error;
+
+
+// define and initialize PWM objects x 6 (2 for motors and 4 for linear actuators)
+
+/* PWM object */
+cyhal_pwm_t pwm_led_control;
+/* API return code */
+cy_rslt_t result;
+
+/* Initialize the device and board peripherals */
+result = cybsp_init();
+
+/* Enable global interrupts */
+__enable_irq();
+
+/* Initialize the retarget-io to use the debug UART port */
+result = cy_retarget_io_init(CYBSP_DEBUG_UART_TX, CYBSP_DEBUG_UART_RX, CY_RETARGET_IO_BAUDRATE);
+
+/* Initialize the PWM */
+result = cyhal_pwm_init(&pwm_led_control, CYBSP_USER_LED, NULL);
+
+/* Set the PWM output frequency and duty cycle */
+result = cyhal_pwm_set_duty_cycle(&pwm_led_control, PWM_DUTY_CYCLE, PWM_FREQUENCY);
+
+/* Start the PWM */
+result = cyhal_pwm_start(&pwm_led_control);
+
+
+//define and initialize I2C connections x 2
+//below is from python not C so pretty much useless
+MPU9250._chip_id = 113
+i2c = I2C(id=0, scl=Pin(SCL), sda=Pin(SDA), freq=400000)
+imu = MPU9250(i2c)
+
+
+
+/* code structure */
+
+// import libraries
+// define parameters
+// declare variables
+
+// initialize sensors
+// initialize pwm signals
+// initialize serial/UART conncection with LabVIEW
+
+// calibrate sensors
+
+// start driving motors to move forward or wait for user inputs
+// run infinite loops for PID control of linear actuators??
+// run infinite loops to output data to LabView
+
+// PID should depend on IMU sensor data based on z-axis acceleration and???
