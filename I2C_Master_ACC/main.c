@@ -73,8 +73,10 @@
 ****************************************/
 
 
-#define MY_TCPWM_PWM_NUM1   (0UL)
-#define MY_TCPWM_PWM_NUM2   (1UL)
+#define MY_TCPWM_PWM_NUM1   (0UL) // left wheel drive
+#define MY_TCPWM_PWM_NUM2   (1UL) // right wheel drive
+#define MY_TCPWM_PWM_NUM3   (2UL) // left linear actuators
+#define MY_TCPWM_PWM_NUM4   (3UL) // right linear actuators
 #define MY_TCPWM_PWM_MASK  (1UL << MY_TCPWM_PWM_NUM1)
 
 
@@ -129,10 +131,6 @@ int main(void)
     /* Set up the device based on configurator selections */
     result = cybsp_init();
 
-    /* PWM object */
-    // cyhal_pwm_t pwm_obj;
-
-
     if (result != CY_RSLT_SUCCESS)
     {
         handle_error();
@@ -145,11 +143,11 @@ int main(void)
     }
 
     /* \x1b[2J\x1b[;H - ANSI ESC sequence for clear screen */
-    printf("\x1b[2J\x1b[;H");
+    //printf("\x1b[2J\x1b[;H");
 
-    printf("**************************\r\n");
-    printf("PSoC 6 MCU I2C Master\r\n");
-    printf("**************************\r\n\n");
+    //printf("**************************\r\n");
+    //printf("PSoC 6 MCU I2C Master\r\n");
+    //printf("**************************\r\n\n");
 
 
 
@@ -162,23 +160,9 @@ int main(void)
     uint16_t z_acc1;
     uint16_t temp2;
 	uint16_t z_acc2;
-    double pwm_signal;
+    double pwm_signal1;
+    double pwm_signal2;
 
-    /* Configure Pins */
-    printf(">> Configuring Pins..... ");
-    GPIO_PRT_Type* portAddr;
-
-	/* Set the port address */
-	portAddr = GPIO_PRT12;
-
-	/* Set the drive mode to STRONG for pins P1[0], P1[2] and P1[3] (other pins in this port are HIGHZ) */
-	CY_SET_REG32(&portAddr->CFG, CY_GPIO_DM_STRONG_IN_OFF << GPIO_PRT_CFG_DRIVE_MODE0_Pos |
-								 CY_GPIO_DM_STRONG_IN_OFF << GPIO_PRT_CFG_DRIVE_MODE1_Pos |
-								 CY_GPIO_DM_STRONG_IN_OFF << GPIO_PRT_CFG_DRIVE_MODE5_Pos );
-
-	/* Set the pins P1[0], P1[2] and P1[3] to high and other pins in this port to low */
-	CY_SET_REG32(&portAddr->OUT, GPIO_PRT_OUT_OUT0_Msk |
-								 GPIO_PRT_OUT_OUT5_Msk);
 
     /* Configure I2C Master */
     printf(">> Configuring I2C Master..... ");
@@ -195,24 +179,57 @@ int main(void)
     {
         handle_error();
     }
-    printf("Done\r\n\n");
+    //printf("Done\r\n\n");
 
 #endif
 
+        /* Configure Pins */
+    //printf(">> Configuring Pins..... ");
+    GPIO_PRT_Type* portAddr;
 
+	/* Set the port address */
+	portAddr = GPIO_PRT12;
+
+	/* Set the drive mode to STRONG for pins P1[0], P1[2] and P1[3] (other pins in this port are HIGHZ) */
+	CY_SET_REG32(&portAddr->CFG, CY_GPIO_DM_STRONG_IN_OFF << GPIO_PRT_CFG_DRIVE_MODE0_Pos |
+								 CY_GPIO_DM_STRONG_IN_OFF << GPIO_PRT_CFG_DRIVE_MODE1_Pos |
+								 CY_GPIO_DM_STRONG_IN_OFF << GPIO_PRT_CFG_DRIVE_MODE5_Pos );
+
+	/* Set the pins P1[0], P1[2] and P1[3] to high and other pins in this port to low */
+	CY_SET_REG32(&portAddr->OUT, GPIO_PRT_OUT_OUT0_Msk |
+								 GPIO_PRT_OUT_OUT5_Msk);
+
+
+        /* Configure PWMs */ // 2 and 3 need to be set in DEVICE CONFIG
     Cy_TCPWM_PWM_Init (TCPWM0, MY_TCPWM_PWM_NUM1, &tcpwm_0_cnt_0_config);
-
     /* Enable the initialized PWM */
     Cy_TCPWM_PWM_Enable(TCPWM0, MY_TCPWM_PWM_NUM1);
     /* Then start the PWM */
     Cy_TCPWM_TriggerStart_Single(TCPWM0, MY_TCPWM_PWM_NUM1);
 
-    Cy_TCPWM_PWM_Init (TCPWM0, MY_TCPWM_PWM_NUM2, &tcpwm_0_cnt_1_config);
 
+    Cy_TCPWM_PWM_Init (TCPWM0, MY_TCPWM_PWM_NUM2, &tcpwm_0_cnt_1_config);
 	/* Enable the initialized PWM */
 	Cy_TCPWM_PWM_Enable(TCPWM0, MY_TCPWM_PWM_NUM2);
 	/* Then start the PWM */
 	Cy_TCPWM_TriggerStart_Single(TCPWM0, MY_TCPWM_PWM_NUM2);
+
+
+    Cy_TCPWM_PWM_Init (TCPWM0, MY_TCPWM_PWM_NUM3, &tcpwm_0_cnt_2_config);
+	/* Enable the initialized PWM */
+	Cy_TCPWM_PWM_Enable(TCPWM0, MY_TCPWM_PWM_NUM3);
+	/* Then start the PWM */
+	Cy_TCPWM_TriggerStart_Single(TCPWM0, MY_TCPWM_PWM_NUM3);
+
+
+    Cy_TCPWM_PWM_Init (TCPWM0, MY_TCPWM_PWM_NUM4, &tcpwm_0_cnt_3_config);
+	/* Enable the initialized PWM */
+	Cy_TCPWM_PWM_Enable(TCPWM0, MY_TCPWM_PWM_NUM4);
+	/* Then start the PWM */
+	Cy_TCPWM_TriggerStart_Single(TCPWM0, MY_TCPWM_PWM_NUM4);
+
+
+
 
 
     /* Enable interrupts */
@@ -258,16 +275,17 @@ int main(void)
             {
                 /* Check packet structure and status */
 
-            	printf("First IMU");
-            	printf("\n");
+            	//printf("First IMU");
+            	//printf("\n");
             	temp1 = buffer1[1] << 8;
             	z_acc1 = temp1 + buffer1[0];
-            	printf("%d", z_acc1);
-            	printf("\n");
-            	pwm_signal = z_acc1 >> 10;
-				printf("%f", pwm_signal);
-				printf("\n");
-            	z_acc1 = 0;
+            	//printf("%d", z_acc1);
+            	//printf("\n");
+            	pwm_signal1 = z_acc1 >> 10;
+				//printf("%f", pwm_signal);
+				//printf("\n");
+
+                //Cy_TCPWM_ShiftReg_SetCompare1Val(TCPWM0, 1, pwm_signal);
             }
 
             /* Give delay between commands. */
@@ -285,21 +303,26 @@ int main(void)
 			{
 				/* Check packet structure and status */
 
-				printf("Second IMU");
-				printf("\n");
+				//printf("Second IMU");
+				//printf("\n");
 				temp2 = buffer2[1] << 8;
 				z_acc2 = temp2 + buffer2[0];
-				printf("%d", z_acc2);
-				printf("\n");
-				pwm_signal = z_acc2 >> 10;
-				printf("%f", pwm_signal);
-				printf("\n");
-				z_acc2 = 0;
+				//printf("%d", z_acc2);
+				//printf("\n");
+				pwm_signal2 = z_acc2 >> 10;
+				//printf("%f", pwm_signal);
+				//printf("\n");
+
 			}
 
 			/* Give delay between commands. */
 			cyhal_system_delay_ms(CMD_TO_CMD_DELAY);
 		}
+
+		printf("b%d, %d, %f, %fe\r\n", z_acc1, z_acc2, pwm_signal1, pwm_signal2);
+		z_acc1 = 0;
+
+		z_acc2 = 0;
 
 
     }
