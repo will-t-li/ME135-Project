@@ -174,7 +174,7 @@ CY_TOOLS_PATHS ?= $(wildcard \
 # If you install ModusToolbox IDE in a custom location, add the path to its
 # "tools_X.Y" folder (where X and Y are the version number of the tools
 # folder). Make sure you use forward slashes.
-CY_TOOLS_PATHS+=C:/Infineon/Tools/ModusToolbox/tools_2.4
+CY_TOOLS_PATHS+=
 
 # Default to the newest installed tools folder, or the users override (if it's
 # found).
