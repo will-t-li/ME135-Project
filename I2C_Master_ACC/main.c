@@ -1,45 +1,3 @@
-/******************************************************************************
-* File Name:   main.c
-*
-* Description: This example project demonstrates the basic operation of the
-* I2C resource as Master using HAL APIs. The I2C master sends the
-* command packets to the I2C slave to control an user LED.
-*
-* Related Document: See README.md
-*
-*
-*******************************************************************************
-* Copyright 2019-2021, Cypress Semiconductor Corporation (an Infineon company) or
-* an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
-*
-* This software, including source code, documentation and related
-* materials ("Software") is owned by Cypress Semiconductor Corporation
-* or one of its affiliates ("Cypress") and is protected by and subject to
-* worldwide patent protection (United States and foreign),
-* United States copyright laws and international treaty provisions.
-* Therefore, you may use this Software only as provided in the license
-* agreement accompanying the software package from which you
-* obtained this Software ("EULA").
-* If no EULA applies, Cypress hereby grants you a personal, non-exclusive,
-* non-transferable license to copy, modify, and compile the Software
-* source code solely for use in connection with Cypress's
-* integrated circuit products.  Any reproduction, modification, translation,
-* compilation, or representation of this Software except as specified
-* above is prohibited without the express written permission of Cypress.
-*
-* Disclaimer: THIS SOFTWARE IS PROVIDED AS-IS, WITH NO WARRANTY OF ANY KIND,
-* EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, NONINFRINGEMENT, IMPLIED
-* WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. Cypress
-* reserves the right to make changes to the Software without notice. Cypress
-* does not assume any liability arising out of the application or use of the
-* Software or any product or circuit described in the Software. Cypress does
-* not authorize its products for use in any products where a malfunction or
-* failure of the Cypress product may reasonably be expected to result in
-* significant property damage, injury or death ("High Risk Product"). By
-* including Cypress's product in a High Risk Product, the manufacturer
-* of such system or application assumes all risk of such use and in doing
-* so agrees to indemnify Cypress against all liability.
-*******************************************************************************/
 
 #include "cy_pdl.h"
 #include "cyhal.h"
@@ -50,7 +8,7 @@
 /***************************************
 *            Constants
 ****************************************/
-#define CMD_TO_CMD_DELAY        (30UL)
+#define CMD_TO_CMD_DELAY        (25UL)
 
 /* I2C slave address to communicate with */
 
@@ -73,22 +31,12 @@
 ****************************************/
 
 
-#define MY_TCPWM_PWM_NUM1   (0UL) // left wheel drive
-#define MY_TCPWM_PWM_NUM2   (1UL) // right wheel drive
-#define MY_TCPWM_PWM_NUM3   (2UL) // left linear actuators
-#define MY_TCPWM_PWM_NUM4   (3UL) // right linear actuators
+#define MY_TCPWM_PWM_NUM1   (0UL) // front actuators
+#define MY_TCPWM_PWM_NUM2   (1UL) // front motors
+#define MY_TCPWM_PWM_NUM3   (2UL) // rear actuators
+#define MY_TCPWM_PWM_NUM4   (3UL) // rear motors
 #define MY_TCPWM_PWM_MASK  (1UL << MY_TCPWM_PWM_NUM1)
 
-#define Kp  (1UL)
-#define Kd  (0UL)
-#define Ki  (0UL)
-#define sampleTime  (0.005F)
-#define targetAngle (0F)
-
-
-/*******************************************************************************
-* Macros
-*******************************************************************************/
 
 /*******************************************************************************
 * Function Name: handle_error
@@ -177,9 +125,6 @@ int main(void)
 	int32_t compare_rear;
 	int32_t compare_front;
 	float current_angle;
-	uint32_t target_angle = 0;
-	int32_t error = 0;
-	int32_t error_sum = 0;
     int16_t accY;
     int16_t accZ;
     bool neg_angle;
@@ -205,12 +150,10 @@ int main(void)
     {
         handle_error();
     }
-    //printf("Done\r\n\n");
 
 #endif
 
         /* Configure Pins */
-    //printf(">> Configuring Pins..... ");
     GPIO_PRT_Type* standbyaddr;
     GPIO_PRT_Type* frontacts_in1;
     GPIO_PRT_Type* frontacts_in2;
@@ -234,9 +177,6 @@ int main(void)
 								GPIO_PRT_OUT_OUT2_Msk |
 								GPIO_PRT_OUT_OUT3_Msk |
 								GPIO_PRT_OUT_OUT4_Msk);
-
-
-
 
 
 	/* Setting up Pins for Linear Actuator Direction */
@@ -321,7 +261,6 @@ int main(void)
     /* Enable interrupts */
     __enable_irq();
  
-
     for (;;)
     {
     	//Setting up I2C
@@ -354,7 +293,7 @@ int main(void)
 		buffer6[0] = 0x2A;
 		buffer6[1] = 0x2B;
 
-
+///////////////////////////////////////////////////////////////////////////////////////////// Reading IMU accel values
         /* Send packet with command to the slave. */
         if (CY_RSLT_SUCCESS == cyhal_i2c_master_write( &mI2C, LSM6DSO_ADDR1,
                                                   buffer1, 1, 0, true))
@@ -403,8 +342,8 @@ int main(void)
 				/* Check packet structure and status */
 				//printf("First IMU");
 				//printf("\n");
-				tempx1 = buffer3[0] << 8;
-				x_acc1 = tempx1 + buffer3[1];
+				tempx1 = buffer3[1] << 8;
+				x_acc1 = tempx1 + buffer3[0];
 			}
 			/* Give delay between commands. */
 			cyhal_system_delay_ms(CMD_TO_CMD_DELAY);
@@ -463,6 +402,10 @@ int main(void)
 			/* Give delay between commands. */
 			cyhal_system_delay_ms(CMD_TO_CMD_DELAY);
 		}
+//////////////////////////////////////////////////////////////////////////////// Finished reading IMU values
+
+
+/////////////////////////////////////////////////////////////////////////////// Interpreting unsigned hex values
 		if (x_acc1 > 16393) {
 			x_acc1 -= 65535;
 		}
@@ -481,11 +424,6 @@ int main(void)
 		if (x_acc2 > 16393) {
 			x_acc2 -= 65535;
 		}
-		//printf("b%d, %d, %d, %d, %d, %de\r\n", x_acc1, y_acc1, z_acc1, x_acc2, y_acc2, z_acc2);
-		//printf("\n");
-		//printf("%lu", compare);
-		//printf("\n");
-
 		accY = (y_acc1 + y_acc2)/2;
 		accZ = (z_acc1 + z_acc2)/2;
 		acc_ratio = accY*1000/accZ;
@@ -508,13 +446,15 @@ int main(void)
 	  }
 		current_angle = floor(current_angle);
 		current_angle = (current_angle < -20) ? -20 : ((current_angle > 20) ? 20 : current_angle);
-		////////////////////////////////////////////////////
+		////////////////////////////////////////////////////////////////////////////
 
 
 		//fetch current compare values
 		compare_front = Cy_TCPWM_Counter_GetCompare0Val(TCPWM0, MY_TCPWM_PWM_NUM1); // 8.0
 		compare_rear = Cy_TCPWM_Counter_GetCompare0Val(TCPWM0, MY_TCPWM_PWM_NUM2); // 6.2
 
+
+		//////////////////////////////////////////////////////////////////////// pseudo state machine for determining if ground below is flat or not
 		if ((prev_acc_ratio < acc_ratio - 20) || (prev_acc_ratio > acc_ratio + 20)) {
 			not_flat = 1;
 		}
@@ -524,14 +464,13 @@ int main(void)
 		else {
 			not_flat = 0;
 		}
+//////////////////////////////////////////////////////////////////////////////////////////
 
-
-
+//////////// Main Statement for Stabilizing Platform
 
 		if (acc_ratio > 50) {
-		//if (accZ < 16200 && accY > 0) {
-			compare_front = 500;
-			compare_rear = 500;
+			compare_front = 450;
+			compare_rear = 450;
 			front_updown = -1;
 			rear_updown = 1;
 			//FRONT DIRECTION DOWN
@@ -552,9 +491,8 @@ int main(void)
 			printf("\r\n");
 		}
 		else if (acc_ratio < -50) {
-		//else if (accZ < 16200 && accY < 0) {
-			compare_front = 500;
-			compare_rear = 500;
+			compare_front = 450;
+			compare_rear = 450;
 			front_updown = 1;
 			rear_updown = -1;
 			//FRONT DIRECTION UP
@@ -574,9 +512,9 @@ int main(void)
 			printf("Negative Angle");
 			printf("\r\n");
 		}
-		else {
-			compare_front = 300;
-			compare_rear = 300;
+		else { /////////////////////////////////// if the ground below is not flat, stays still
+			compare_front = 250;
+			compare_rear = 400;
 			if (not_flat) {
 				front_updown = 0;
 				rear_updown = 0;
@@ -596,7 +534,7 @@ int main(void)
 				printf("Staying Still");
 				printf("\r\n");
 			}
-			else {
+			else {//////////////////////////////// if ground below is flat, tries to extend both front and rear
 				front_updown = 1;
 				rear_updown = 1;
 				/* Set the pins 12 to high and other pins in this port to low */
@@ -616,47 +554,23 @@ int main(void)
 			}
 		}
 
-//		error = acc_ratio - target_angle;
-//		error_sum = error_sum + error;
-//		error_sum = (error_sum < -1000) ? -1000 : ((error_sum > 1000) ? 1000 : error_sum);
-//		compare = Kp*(error) + Ki*(error_sum)*sampleTime - Kd*(current_angle-prev_angle)/sampleTime;
-//		  if (neg_angle) {
-//			  compare *= -1;
-//		  }
-		//compare = 500;
 
+		////////// Set PWM duty cycles
 		Cy_TCPWM_Counter_SetCompare0Val(TCPWM0, MY_TCPWM_PWM_NUM1, compare_front); // front actuators
 		Cy_TCPWM_Counter_SetCompare0Val(TCPWM0, MY_TCPWM_PWM_NUM2, 500); // front motors
-		Cy_TCPWM_Counter_SetCompare0Val(TCPWM0, MY_TCPWM_PWM_NUM3, compare_rear + 100); // rear actuators
+		Cy_TCPWM_Counter_SetCompare0Val(TCPWM0, MY_TCPWM_PWM_NUM3, compare_rear); // rear actuators
 		Cy_TCPWM_Counter_SetCompare0Val(TCPWM0, MY_TCPWM_PWM_NUM4, 500); // rear motors
 		compare_front = Cy_TCPWM_Counter_GetCompare0Val(TCPWM0, MY_TCPWM_PWM_NUM1); // 8.0
 		compare_rear = Cy_TCPWM_Counter_GetCompare0Val(TCPWM0, MY_TCPWM_PWM_NUM3); // 11.2
-		//prev_angle = current_angle;
-		//printf("%d", not_flat);
-		//printf("\r\n");
-		// printf("%f", pwm_signal1);
-		// printf("\n");
-		//printf("%d, %d", prev_acc_ratio, acc_ratio);
-		//printf("%d, %d", front_length, rear_length);
-		//printf("\r\n");
 		prev_acc_ratio = acc_ratio;
+		// Printing to serial for LabView
 		printf("b%d, %d, %d, %d, %d, %d, %f, %ld, %ld, %d, %de\r\n", x_acc1, y_acc1, z_acc1, x_acc2, y_acc2, z_acc2, current_angle, compare_front, compare_rear, front_updown, rear_updown);
+		// Resetting accel variables
 		z_acc1 = 0;
 		z_acc2 = 0;
 		y_acc1 = 0;
 		y_acc2 = 0;
 		x_acc1 = 0;
 		x_acc2 = 0;
-		/*
-		 * angle = 0:
-		 * 		if rear length and front length are both high, gpio = down and pwm = 100, reset lengths
-		 * 		else pwm = 0, gpio = down
- * 		angle > 0:
- * 			pwm on for rear, gpio = up
- * 			add to rear length var
-* 		angle < 0:
-* 			pwm on for front, gpio = up
-* 			add to front length var
-		 */
     }
 }
